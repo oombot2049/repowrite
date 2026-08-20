@@ -1,0 +1,22 @@
+{
+  "cases": [
+    {
+      "name": "recall current workflow preference",
+      "memory_type": "semantic",
+      "workspace": "D:\\work\\example-project",
+      "query": "How should changes be committed?",
+      "expected_ids": ["replace-with-semantic-memory-id"],
+      "forbidden_ids": ["replace-with-other-workspace-memory-id"],
+      "top_k": 5
+    },
+    {
+      "name": "recall a similar completed task",
+      "memory_type": "episodic",
+      "workspace": "D:\\work\\example-project",
+      "query": "How did we fix the provider tool calling error?",
+      "expected_ids": ["replace-with-episode-id"],
+      "forbidden_ids": [],
+      "top_k": 5
+    }
+  ]
+}

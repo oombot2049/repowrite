@@ -1,0 +1,98 @@
+# Complete minimal example for cross-model and cross-provider fallback.
+# Credentials are never stored here; set the referenced environment variables.
+# PowerShell:
+#   $env:OPENAI_API_KEY = "..."
+#   $env:BACKUP_LLM_API_KEY = "..."
+
+# Bootstrap compatibility section. Routed calls use model_gateway credentials,
+# models, transports, and pricing instead of this model entry.
+openai:
+  base_url: "https://api.openai.com/v1"
+  api_key: "unused-when-model-gateway-is-enabled"
+  model: "bootstrap-model"
+  transport: "auto"
+  reasoning_effort: "medium"
+  capability_profile: "openai"
+  resilience:
+    enabled: true
+    retry:
+      max_attempts: 2
+      base_delay_ms: 500
+      max_delay_ms: 4000
+      max_retry_after_ms: 30000
+    timeout:
+      connect_ms: 10000
+      first_event_ms: 45000
+      idle_stream_ms: 30000
+      total_attempt_ms: 180000
+    circuit_breaker:
+      enabled: true
+      failure_threshold: 5
+      failure_window_ms: 60000
+      cooldown_ms: 30000
+    fallback:
+      same_model_transport: true
+  budgets:
+    max_calls_per_run: 30
+    max_attempts_per_run: 60
+
+model_gateway:
+  enabled: true
+  default_route: "coding-interactive"
+
+  providers:
+    openai-primary:
+      type: "openai"
+      base_url: "https://api.openai.com/v1"
+      api_key_env: "OPENAI_API_KEY"
+      transports: ["responses", "chat_completions"]
+      capability_profile: "openai"
+    compatible-backup:
+      type: "openai_compatible"
+      base_url: "https://llm-backup.example.com/v1"
+      api_key_env: "BACKUP_LLM_API_KEY"
+      transports: ["responses", "chat_completions"]
+      capability_profile: "openai_compatible"
+
+  models:
+    coding-premium:
+      provider: "openai-primary"
+      model: "premium-coding-model"
+      transport: "auto"
+      context_window: 400000
+      tools: true
+      reasoning_efforts: ["none", "low", "medium", "high", "xhigh", "max"]
+      provider_state: true
+      structured_output: true
+      pricing:
+        input_per_million: null
+        cached_input_per_million: null
+        output_per_million: null
+        version: null
+    coding-balanced:
+      provider: "openai-primary"
+      model: "balanced-coding-model"
+      transport: "responses"
+      context_window: 200000
+      tools: true
+      reasoning_efforts: ["none", "low", "medium", "high"]
+      provider_state: true
+      structured_output: true
+    coding-backup:
+      provider: "compatible-backup"
+      model: "backup-coding-model"
+      transport: "responses"
+      context_window: 128000
+      tools: true
+      reasoning_efforts: ["none", "low", "medium", "high"]
+      provider_state: true
+      structured_output: true
+
+  routes:
+    coding-interactive:
+      candidates: ["coding-premium", "coding-balanced", "coding-backup"]
+      fallback_on:
+        ["connection", "timeout", "rate_limit", "server", "circuit_open", "model_unavailable"]
+      max_fallback_hops: 2
+      max_total_attempts: 6
+      allow_cross_provider: true

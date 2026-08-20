@@ -1,0 +1,53 @@
+.env
+.env.*
+!.env.example
+.venv
+.idea/
+.vscode/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+data/
+logs/
+
+# Local Nexa runtime state
+.nexa/
+/memory.md
+memory/*
+
+# Generated and temporary work products
+outputs/
+.tmp-*/
+**/.temp-execution-*
+scripts/build_agent_interview_handbook.py
+tests/resource/RAG调研.pdf
+
+# Local assistant tooling is not part of the published product.
+.claude/
+
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+
+# Internal research checkouts are linked from documentation, not vendored.
+refs/
+
+# Local operating-system and package-manager files
+.DS_Store
+Thumbs.db
+desktop.ini
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*

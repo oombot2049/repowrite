@@ -1,0 +1,221 @@
+# ============================================================
+# NexaPilot — config.yaml.example
+# Copy to ~/.nexa/config.yaml (global) or
+# {worktree}/.nexa/config.yaml (project-level, overrides global).
+# ============================================================
+
+# --- OpenAI-compatible LLM endpoint (required) ---
+openai:
+  base_url: "https://api.deepseek.com/v1"
+  api_key: "REPLACE_ME"
+  model: "deepseek-chat"
+  transport: "chat_completions"  # auto | chat_completions | responses
+  reasoning_effort: "medium"
+  capability_profile: "auto"     # auto | openai | openai_compatible
+  resilience:
+    enabled: true
+    retry:
+      max_attempts: 3
+      base_delay_ms: 500
+      max_delay_ms: 8000
+      max_retry_after_ms: 30000
+    timeout:
+      connect_ms: 10000
+      first_event_ms: 45000
+      idle_stream_ms: 30000
+      total_attempt_ms: 180000
+    circuit_breaker:
+      enabled: true
+      failure_threshold: 5
+      failure_window_ms: 60000
+      cooldown_ms: 30000
+    fallback:
+      same_model_transport: true
+  budgets:
+    max_calls_per_run: 30
+    max_attempts_per_run: 60
+    max_input_tokens_per_run: null
+    max_output_tokens_per_run: null
+    max_cost_microusd_per_run: null
+  # Unknown prices stay unknown; never use zero as a placeholder.
+  pricing: null
+
+# --- Optional cross-model / cross-provider gateway ---
+# Provider credentials are read only from environment variables. Set
+# OPENAI_API_KEY and BACKUP_LLM_API_KEY before changing enabled to true.
+model_gateway:
+  enabled: false
+  default_route: "coding-interactive"
+  providers:
+    openai-primary:
+      type: "openai"
+      base_url: "https://api.openai.com/v1"
+      api_key_env: "OPENAI_API_KEY"
+      transports: ["responses", "chat_completions"]
+      capability_profile: "openai"
+    compatible-backup:
+      type: "openai_compatible"
+      base_url: "https://llm-backup.example.com/v1"
+      api_key_env: "BACKUP_LLM_API_KEY"
+      transports: ["responses", "chat_completions"]
+      capability_profile: "openai_compatible"
+  models:
+    coding-premium:
+      provider: "openai-primary"
+      model: "gpt-5.6-sol"
+      transport: "auto"
+      context_window: 400000
+      tools: true
+      reasoning_efforts: ["none", "low", "medium", "high", "xhigh", "max"]
+      provider_state: true
+      structured_output: true
+      pricing:
+        input_per_million: null
+        cached_input_per_million: null
+        output_per_million: null
+        version: null
+    coding-balanced:
+      provider: "openai-primary"
+      model: "gpt-5.6-luna"
+      transport: "auto"
+      context_window: 400000
+      tools: true
+      reasoning_efforts: ["none", "low", "medium", "high", "xhigh"]
+      provider_state: true
+      structured_output: true
+    coding-backup:
+      provider: "compatible-backup"
+      model: "backup-coding-model"
+      transport: "responses"
+      context_window: 200000
+      tools: true
+      reasoning_efforts: ["none", "low", "medium", "high"]
+      provider_state: true
+      structured_output: true
+  routes:
+    coding-interactive:
+      candidates: ["coding-premium", "coding-balanced", "coding-backup"]
+      fallback_on: ["connection", "timeout", "rate_limit", "server", "circuit_open", "model_unavailable"]
+      max_fallback_hops: 2
+      max_total_attempts: 6
+      allow_cross_provider: true
+
+# --- Global system prompt (empty = load from prompts/default.txt) ---
+# system_prompt: "You are Nexa, a capable personal agent."
+
+# --- Data paths ---
+db_path: "./data/nexa.sqlite3"
+# default_worktree: "/abs/path/to/worktree"   # empty = auto-detect git root
+
+# --- Permission default (ask | allow | deny) ---
+# Use `allow` only for fast local testing.
+default_permission_action: "ask"
+
+# --- Local host-shell compatibility guardrails ---
+# This is not an OS sandbox. Every new command still follows Permission rules.
+local_guarded:
+  enabled: true
+  require_isolated_shell: false
+  timeout_ms: 120000
+  max_timeout_ms: 600000
+  max_output_bytes: 2000000
+
+# Durable Run lifecycle. Startup reconciliation conservatively interrupts
+# abandoned work instead of replaying tools whose side effects are uncertain.
+durable_run:
+  enabled: true
+  heartbeat_interval_ms: 5000
+  lease_duration_ms: 20000
+  max_attempts: 1
+
+# --- Logging ---
+logging:
+  level: "INFO"            # DEBUG | INFO | WARNING | ERROR
+  console: true
+  file: true
+  dir: "./data/logs"
+  rotation: "00:00"        # Loguru rotation syntax
+  retention: "7 days"      # Loguru retention syntax
+
+# --- Langfuse tracing (optional) ---
+langfuse:
+  enabled: true
+  public_key: ""
+  secret_key: ""
+  base_url: "https://cloud.langfuse.com"
+  environment: "development"
+  sample_rate: 1.0
+  debug: false
+
+# --- Channel integrations (optional) ---
+channels:
+  feishu:
+    enabled: false
+    app_id: ""
+    app_secret: ""
+    encrypt_key: ""
+    verification_token: ""
+    allow_from: []         # open_id whitelist, empty = allow all
+    permission_mode: "deny"   # deny | allow | commands
+    allowed_bash_commands: [] # fnmatch patterns, used when permission_mode=commands
+
+# --- Knowledge Base (optional — empty base_url = disabled) ---
+kb:
+  backend: "lightrag"      # lightrag | none
+  base_url: ""
+  api_key: ""
+
+# --- VLM Document Parser (optional) ---
+vlm:
+  backend: "none"          # paddleocr | none
+  api_url: ""
+  api_key: ""
+  poll_interval: 5
+  timeout: 1800
+
+# --- Hooks ---
+hooks:
+  debug: false
+
+# --- Web Search ---
+web_search:
+  tavily_api_key: ""
+
+# --- Local Memory ---
+memory:
+  enabled: true
+  embedding_base_url: ""
+  embedding_api_key: ""
+  embedding_model: ""
+  sync_interval_seconds: 3
+  processing:
+    enabled: false
+    worker_interval_ms: 1000
+    max_attempts: 5
+  episodic:
+    enabled: false
+  semantic:
+    enabled: false
+  core:
+    enabled: false
+    max_tokens: 1200
+  context_manager:
+    enabled: false
+    shadow_mode: true
+    max_input_tokens: 32000
+    reserved_output_tokens: 4000
+    max_episodic_results: 5
+    max_semantic_results: 8
+
+# --- Daytona Runtime (optional) ---
+daytona:
+  api_key: ""
+  server_url: ""
+  target: ""
+  default_workspace: "/workspace"
+
+# --- Prompt template variables (optional) ---
+# Custom variables available as {{key}} in system prompt.
+# prompt_templates:
+#   team: "backend"
+#   project: "my-project"
